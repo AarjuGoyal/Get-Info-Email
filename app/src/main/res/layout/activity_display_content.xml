@@ -10,4 +10,9 @@
     tools:context="com.example.aarjugoyal.feed_web.DisplayContent"
     android:id="@+id/activity_display_content">
 
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content" />
+
 </RelativeLayout>

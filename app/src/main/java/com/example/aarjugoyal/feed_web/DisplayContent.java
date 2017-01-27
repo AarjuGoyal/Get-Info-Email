@@ -1,28 +1,35 @@
 package com.example.aarjugoyal.feed_web;
 
-import android.app.Fragment;
-import android.content.Context;
+
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.os.AsyncTask;
-import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.Toast;
 
-import java.io.IOException;
-import java.net.URL;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-public class DisplayContent extends FragmentActivity implements DownloadCallback{
+import java.util.ArrayList;
+import java.util.HashMap;
 
-    // Keep a reference to the NetworkFragment, which owns the AsyncTask object
-    // that is used to execute network ops.
-    private NetworkFragment mNetworkFragment;
 
+public class DisplayContent extends AppCompatActivity{
+
+
+    private String TAG = DisplayContent.class.getSimpleName();
+    private ListView lv;
+
+    ArrayList<HashMap<String, String>> contactList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,238 +38,111 @@ public class DisplayContent extends FragmentActivity implements DownloadCallback
 
         Intent intent = getIntent();
         String email_name = intent.getStringExtra(MainActivity.EMAILNAME);
-        TextView textView = new TextView(this);
-        textView.setTextSize(40);
-        textView.setText(email_name);
+        //TextView textView = new TextView(this);
+        //textView.setTextSize(40);
+        //textView.setText(email_name);
 
-        ViewGroup layout = (ViewGroup) findViewById(R.id.activity_display_content);
-        layout.addView(textView);
+        //ViewGroup layout = (ViewGroup) findViewById(R.id.activity_display_content);
+        //layout.addView(textView);
 
+        contactList = new ArrayList<>();
+        lv = (ListView) findViewById(R.id.list);
 
-        mNetworkFragment = NetworkFragment.getInstance(getSupportFragmentManager(), "https://www.google.com");
-
+        new GetContacts().execute();
     }
 
 
-    // Boolean telling us whether a download is in progress, so we don't trigger overlapping
-    // downloads with consecutive button clicks.
-    private boolean mDownloading = false;
+    private class GetContacts extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected void onPreExecute() {
+            Log.i("INFO","GetContacts :: FUnction ---> onpreExecute");
+            super.onPreExecute();
+            Toast.makeText(DisplayContent.this,"Json Data is downloading",Toast.LENGTH_LONG).show();
 
-    @Override
-    public void updateFromDownload(String result) {
-        // Update your UI here based on result of download.
-    }
-
-    @Override
-    public void updateFromDownload(Object result) {
-
-    }
-
-    @Override
-    public NetworkInfo getActiveNetworkInfo() {
-        ConnectivityManager connectivityManager =
-                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        return networkInfo;
-    }
-
-    @Override
-    public void onProgressUpdate(int progressCode, int percentComplete) {
-        switch(progressCode) {
-            // You can add UI behavior for progress updates here.
-            case Progress.ERROR:
-
-                break;
-            case Progress.CONNECT_SUCCESS:
-
-                break;
-            case Progress.GET_INPUT_STREAM_SUCCESS:
-
-                break;
-            case Progress.PROCESS_INPUT_STREAM_IN_PROGRESS:
-
-                break;
-            case Progress.PROCESS_INPUT_STREAM_SUCCESS:
-
-                break;
-        }
-    }
-
-    @Override
-    public void finishDownloading() {
-        mDownloading = false;
-        if (mNetworkFragment != null) {
-            mNetworkFragment.cancelDownload();
-        }
-    }
-
-}
-
-    /**
-     * Implementation of headless Fragment that runs an AsyncTask to fetch data from the network.
-     */
-    public class NetworkFragment extends Fragment {
-        public static final String TAG = "NetworkFragment";
-
-        private static final String URL_KEY = "UrlKey";
-
-        private DownloadCallback mCallback;
-        private DownloadTask mDownloadTask;
-        private String mUrlString;
-
-        /**
-         * Static initializer for NetworkFragment that sets the URL of the host it will be downloading
-         * from.
-         */
-        public static NetworkFragment getInstance(FragmentManager fragmentManager, String url) {
-            NetworkFragment networkFragment = new NetworkFragment();
-            Bundle args = new Bundle();
-            args.putString(URL_KEY, url);
-            networkFragment.setArguments(args);
-            fragmentManager.beginTransaction().add(networkFragment, TAG).commit();
-            return networkFragment;
         }
 
         @Override
-        public void onCreate(@Nullable Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            mUrlString = getArguments().getString(URL_KEY);
-        }
+        protected Void doInBackground(Void... arg0) {
+            Log.i("INFO","GetContacts :: Function ---> doInBackground");
+            HttpHandler sh = new HttpHandler();
+            // Making a request to url and getting response
+            //Toast.makeText(this,"What is this",Toast.LENGTH_LONG).show();
+            String url = "http://api.androidhive.info/contacts/";
+            String jsonStr = sh.makeServiceCall(url);
+            Log.i("INFO","doInBackgound :: url and jsonStr recieved");
+            Log.e(TAG, "Response from url: " + jsonStr);
+            if (jsonStr != null) {
+                try {
+                    JSONObject jsonObj = new JSONObject(jsonStr);
 
-        @Override
-        public void onAttach(Context context) {
-            super.onAttach(context);
-            // Host Activity will handle callbacks from task.
-            mCallback = (DownloadCallback) context;
-        }
+                    // Getting JSON Array node
+                    JSONArray contacts = jsonObj.getJSONArray("contacts");
 
-        @Override
-        public void onDetach() {
-            super.onDetach();
-            // Clear reference to host Activity to avoid memory leak.
-            mCallback = null;
-        }
+                    // looping through All Contacts
+                    for (int i = 0; i < contacts.length(); i++) {
+                        JSONObject c = contacts.getJSONObject(i);
+                        String id = c.getString("id");
+                        String name = c.getString("name");
+                        String email = c.getString("email");
+                        String address = c.getString("address");
+                        String gender = c.getString("gender");
+                        Log.i("INFO","doInBackground :: value of contact recieved");
+                        // Phone node is JSON Object
+                        JSONObject phone = c.getJSONObject("phone");
+                        String mobile = phone.getString("mobile");
+                        String home = phone.getString("home");
+                        String office = phone.getString("office");
 
-        @Override
-        public void onDestroy() {
-            // Cancel task when Fragment is destroyed.
-            cancelDownload();
-            super.onDestroy();
-        }
+                        // tmp hash map for single contact
+                        HashMap<String, String> contact = new HashMap<>();
 
-        /**
-         * Start non-blocking execution of DownloadTask.
-         */
-        public void startDownload() {
-            cancelDownload();
-            mDownloadTask = new DownloadTask();
-            mDownloadTask.execute(mUrlString);
-        }
+                        // adding each child node to HashMap key => value
+                        contact.put("id", id);
+                        contact.put("name", name);
+                        contact.put("email", email);
+                        contact.put("mobile", mobile);
 
-        /**
-         * Cancel (and interrupt if necessary) any ongoing DownloadTask execution.
-         */
-        public void cancelDownload() {
-            if (mDownloadTask != null) {
-                mDownloadTask.cancel(true);
-            }
-        }
-
-
-        private class DownloadTask extends AsyncTask<String, Void, DownloadTask.Result> {
-
-            private DownloadCallback<String> mCallback;
-
-            DownloadTask(DownloadCallback<String> callback) {
-                setCallback(callback);
-            }
-
-            void setCallback(DownloadCallback<String> callback) {
-                mCallback = callback;
-            }
-
-            /**
-             * Wrapper class that serves as a union of a result value and an exception. When the download
-             * task has completed, either the result value or exception can be a non-null value.
-             * This allows you to pass exceptions to the UI thread that were thrown during doInBackground().
-             */
-            private static class Result {
-                public String mResultValue;
-                public Exception mException;
-                public Result(String resultValue) {
-                    mResultValue = resultValue;
-                }
-                public Result(Exception exception) {
-                    mException = exception;
-                }
-            }
-
-            /**
-             * Cancel background network operation if we do not have network connectivity.
-             */
-            @Override
-            protected void onPreExecute() {
-                if (mCallback != null) {
-                    NetworkInfo networkInfo = mCallback.getActiveNetworkInfo();
-                    if (networkInfo == null || !networkInfo.isConnected() ||
-                            (networkInfo.getType() != ConnectivityManager.TYPE_WIFI
-                                    && networkInfo.getType() != ConnectivityManager.TYPE_MOBILE)) {
-                        // If no connectivity, cancel task and update Callback with null data.
-                        mCallback.updateFromDownload(null);
-                        cancel(true);
+                        // adding contact to contact list
+                        contactList.add(contact);
                     }
-                }
-            }
-
-            /**
-             * Defines work to perform on the background thread.
-             */
-            @Override
-            protected DownloadTask.Result doInBackground(String... urls) {
-                Result result = null;
-                if (!isCancelled() && urls != null && urls.length > 0) {
-                    String urlString = urls[0];
-                    try {
-                        URL url = new URL(urlString);
-                        String resultString = downloadUrl(url);
-                        if (resultString != null) {
-                            result = new Result(resultString);
-                        } else {
-                            throw new IOException("No response received.");
+                } catch (final JSONException e) {
+                    Log.e(TAG, "Json parsing error: " + e.getMessage());
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getApplicationContext(),
+                                    "Json parsing error: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
                         }
-                    } catch(Exception e) {
-                        result = new Result(e);
-                    }
+                    });
+
                 }
-                return result;
+
+            } else {
+                Log.e(TAG, "Couldn't get json from server.");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getApplicationContext(),
+                                "Couldn't get json from server. Check LogCat for possible errors!",
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
             }
 
-            /**
-             * Updates the DownloadCallback with the result.
-             */
-            @Override
-            protected void onPostExecute(Result result) {
-                if (result != null && mCallback != null) {
-                    if (result.mException != null) {
-                        mCallback.updateFromDownload(result.mException.getMessage());
-                    } else if (result.mResultValue != null) {
-                        mCallback.updateFromDownload(result.mResultValue);
-                    }
-                    mCallback.finishDownloading();
-                }
-            }
-
-            /**
-             * Override to add special behavior for cancelled AsyncTask.
-             */
-            @Override
-            protected void onCancelled(Result result) {
-            }
-            ...
+            return null;
         }
 
-
+        @Override
+        protected void onPostExecute(Void result) {
+            Log.i("INFO","GetContact :: Function ---> onPostExecute");
+            super.onPostExecute(result);
+            ListAdapter adapter = new SimpleAdapter(DisplayContent.this, contactList,
+                    R.layout.list_item, new String[]{ "email","mobile"},
+                    new int[]{R.id.email, R.id.mobile});
+            lv.setAdapter(adapter);
+        }
     }
-
+}
 
 
